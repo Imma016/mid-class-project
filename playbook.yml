@@ -1,0 +1,111 @@
+---
+#Make sure server is availabe and service is not running
+
+- name: test jobs
+  hosts: all
+  become: true
+
+  tasks:
+  - name:  ping all servers
+    ping:
+
+  # - name: Stop Tomcat
+  #   command: sh /opt/tomcat8/bin/shutdown.sh
+  #   # when: ansible_distribution == "Ubuntu"
+
+  - name: Remove Tomcat
+    file:
+      path: /opt/tomcat8
+      state: absent
+
+  - name: remove user "tomcat"
+    user:
+      name: tomcat
+      state: absent
+
+  - name: remove group "tomcat"
+    group:
+      name: tomcat
+      state: absent
+
+  # - name: Install Apache Tomcat10 using ansible
+  #   hosts: all
+  #   become: true
+
+  #   tasks:
+  - name: Update the System Packages for Ubuntu
+    apt:
+      upgrade: yes
+      update_cache: yes
+    when: ansible_distribution == "Ubuntu"
+
+  - name: Install JAVA in UBUNTU 
+    apt:
+      name: default-jdk
+      state: present
+    when: ansible_distribution == "Ubuntu"
+  
+  - name: Create a Tomcat User
+    user:
+      name: tomcat
+
+  - name: Create a Tomcat Group
+    group:
+      name: tomcat
+
+  - name: Create a Tomcat Directory
+    file:
+      path: /opt/tomcat8
+      owner: tomcat
+      group: tomcat
+      state:  directory
+      mode: 755
+      recurse: yes
+
+  - name: download & unarchive tomcat8
+    unarchive:
+      src: https://mirrors.estointernet.in/apache/tomcat/tomcat-8/v8.5.78/bin/apache-tomcat-8.5.78.tar.gz
+      dest: /opt/tomcat8
+      remote_src: yes
+      extra_opts: [--strip-components=1]
+
+  - name: Change ownership of tomcat directory
+    file:
+      path: /opt/tomcat8
+      owner: tomcat
+      group: tomcat
+      mode: "u+rwX,g+rX,o=rX"
+      # mode: 755
+      recurse: yes
+      state: directory
+
+  # - name: Configure Tomcat and Deploy application to target servers
+  #   hosts: all
+  #   become: true
+
+  #   tasks:
+  - name: Copy Tomcat service from local to remote
+    copy:
+      src: ./tomcat.service.j2
+      dest: /etc/systemd/system/tomcat.service
+      mode: 0755
+
+  # - name: Configure Tomcat and Deploy application to target servers
+  #   hosts: all
+  #   become: true
+
+  # - tasks:  
+  - name: deploying the new WAR-file to all target servers
+    copy:
+      src: /var/lib/jenkins/workspace/JavaCalculatorWebApp/target/webapp-0.2.war
+      dest: /opt/tomcat8/webapps
+      mode: 0755
+
+  - name: Starting up tomcat server on ubuntu servers
+    systemd:
+      name: tomcat
+      state: started
+      daemon_reload: true
+    when: ansible_distribution == "Ubuntu"
+
+...
